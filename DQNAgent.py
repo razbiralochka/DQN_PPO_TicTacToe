@@ -8,28 +8,28 @@ import random
 class DQN(nn.Module):
     def __init__(self):
         super(DQN, self).__init__()
-        self.fc1 = nn.Linear(9, 64)
+        self.fc1 = nn.Linear(9, 10)
         self.fc2 = nn.Linear(64, 64)
-        self.fc3 = nn.Linear(64, 9)
-
+        self.fc3 = nn.Linear(10, 9)
+        self.sp = torch.nn.Softplus()
     def forward(self, x):
-        x = torch.relu(self.fc1(x))
-        x = torch.relu(self.fc2(x))
-        return self.fc3(x)
+        x = self.sp(self.fc1(x))
+        x = self.sp(self.fc3(x))
+        return x
 
 
 class DQNAgent:
     def __init__(self):
-        self.memory = deque(maxlen=100)
+        self.memory = deque(maxlen=500)
         self.model = DQN()
-        self.optimizer = optim.SGD(self.model.parameters(), lr=0.0002)
+        self.optimizer = optim.SGD(self.model.parameters(), lr=0.001)
 
     def act(self, state):
         state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
         q_values = self.model(state_tensor)
 
-        if random.randint(0,1000) < 200:
-            return random.randint(0,8)
+        #if(random.uniform(0,10) < 10):
+            #return random.randint(0,8)
 
         return torch.argmax(q_values).item()
 
