@@ -10,22 +10,25 @@ from collections import deque
 class Crtic(nn.Module):
     def __init__(self):
         super(Crtic, self).__init__()
-        self.fc1 = nn.Linear(9, 1)
-
-
+        self.fc1 = nn.Linear(9, 64)
+        self.fc2 = nn.Linear(64, 1)
+        self.relu = torch.nn.ReLU()
     def forward(self, x):
-        x = self.fc1(x)
+        x = self.relu(self.fc1(x))
+        x = self.fc2(x)
         return x
 
 class Actor(nn.Module):
     def __init__(self):
         super(Actor, self).__init__()
-        self.fc1 = nn.Linear(9, 10)
-        self.fc2 = nn.Linear(10, 64)
-        self.fc3 = nn.Linear(10, 9)
+        self.fc1 = nn.Linear(9, 64)
+        self.fc2 = nn.Linear(64, 32)
+        self.fc3 = nn.Linear(64, 9)
+        self.relu = torch.nn.ReLU()
         self.sp = torch.nn.Softplus()
     def forward(self, x):
         x = self.sp(self.fc1(x))
+        x = self.sp(self.fc2(x))
         x = self.sp(self.fc3(x))
         probs = torch.softmax(x, dim=-1)
         return probs
@@ -35,7 +38,7 @@ class PPOAgent:
     def __init__(self):
         self.modelA = Actor()
         self.modelC = Crtic()
-        self.optimizerA = optim.SGD(self.modelA.parameters(), lr=0.0005)
+        self.optimizerA = optim.SGD(self.modelA.parameters(), lr=0.0002)
         self.optimizerC = optim.SGD(self.modelC.parameters(), lr=0.002)
         self.curr_prob = 0
         self.curr_trac = list()
@@ -64,7 +67,7 @@ class PPOAgent:
 
     def learn(self):
 
-        if len(self.trajcs) < 40:
+        if len(self.trajcs) < 20:
             return
 
         data = list()
@@ -85,8 +88,8 @@ class PPOAgent:
                 for line in data:
                     state, act, prob, R = line
                     Rlist.append(R)
-                    state = torch.tensor(state,dtype=torch.float32).unsqueeze(0)
-                    Rew = torch.tensor(R,dtype=torch.float32).reshape([1,1])
+                    state = torch.tensor(state,dtype=torch.float).unsqueeze(0)
+                    Rew = torch.tensor(R,dtype=torch.float).reshape([1,1])
 
                     V = self.modelC(state)
                     loss = nn.MSELoss()(V, Rew)
@@ -96,12 +99,12 @@ class PPOAgent:
 
             baseline = np.mean(Rlist)
 
-            for epoch in range(5):
+            for epoch in range(3):
                 for line in data:
                     state, act, oldProbs, R = line
-                    state = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
-                    Rew = torch.tensor(R, dtype=torch.float32).unsqueeze(0)
-                    oldProbs = torch.tensor(oldProbs, dtype=torch.float32).unsqueeze(0)
+                    state = torch.tensor(state, dtype=torch.float).unsqueeze(0)
+                    Rew = torch.tensor(R, dtype=torch.float).unsqueeze(0)
+                    oldProbs = torch.tensor(oldProbs, dtype=torch.float).unsqueeze(0)
 
                     with torch.no_grad():
                         V = self.modelC(state)
@@ -109,8 +112,9 @@ class PPOAgent:
 
 
                     probs = self.modelA(state)[0][act]
+
                     ratio = torch.exp(torch.log(probs) - torch.log(oldProbs))
-                    loss = -torch.min(A*ratio, torch.clamp(ratio, 0.2, 1.2))
+                    loss = -torch.min(A*ratio, torch.clamp(ratio, 0.8, 1.2))
                     self.optimizerA.zero_grad()
                     loss.backward()
                     self.optimizerA.step()

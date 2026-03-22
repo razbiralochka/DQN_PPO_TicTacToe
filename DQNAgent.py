@@ -8,30 +8,37 @@ import random
 class DQN(nn.Module):
     def __init__(self):
         super(DQN, self).__init__()
-        self.fc1 = nn.Linear(9, 10)
+        self.fc1 = nn.Linear(9, 64)
         self.fc2 = nn.Linear(64, 64)
-        self.fc3 = nn.Linear(10, 9)
+        self.fc3 = nn.Linear(64, 9)
+        self.relu = torch.nn.ReLU()
         self.sp = torch.nn.Softplus()
     def forward(self, x):
         x = self.sp(self.fc1(x))
-        x = self.sp(self.fc3(x))
+        x = self.sp(self.fc2(x))
+        x = self.fc3(x)
         return x
 
 
 class DQNAgent:
     def __init__(self):
-        self.memory = deque(maxlen=500)
+        self.memory = deque(maxlen=100)
         self.model = DQN()
-        self.optimizer = optim.SGD(self.model.parameters(), lr=0.001)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=0.002)
 
     def act(self, state):
         state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
         q_values = self.model(state_tensor)
 
-        #if(random.uniform(0,10) < 10):
-            #return random.randint(0,8)
 
-        return torch.argmax(q_values).item()
+        q_values = q_values.detach()[0].tolist()
+        valid_actions = [i for i, cell in enumerate(state) if cell == 0]
+        valid_q_values = [q_values[i] for i in valid_actions]
+        best_idx = np.argmax(valid_q_values)
+        action = valid_actions[best_idx]
+
+
+        return action
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
@@ -47,6 +54,8 @@ class DQNAgent:
             q_values = self.model(state)
             target = q_values.clone()
 
+            self.optimizer.zero_grad()
+
             with torch.no_grad():
                 qNext = self.model(next_state)
 
@@ -56,6 +65,6 @@ class DQNAgent:
                 target[0][action] = reward + torch.max(qNext)
 
             loss = nn.MSELoss()(q_values, target)
-            self.optimizer.zero_grad()
+
             loss.backward()
             self.optimizer.step()

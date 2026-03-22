@@ -14,10 +14,8 @@ class TicTacToeEnv:
         if self.board[action] != 0:
             available_actions = [i for i, x in enumerate(self.board) if x == 0]
 
-
-
             action = random.choice(available_actions)
-
+            #action = available_actions[0]
         self.board[action] = player
         gameState = self.checkBoard()
 
