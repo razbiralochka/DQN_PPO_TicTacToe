@@ -1,5 +1,6 @@
 import numpy as np
 from PIL.ImagePalette import random
+from math import floor
 
 from AZAgent import AZAgent
 from CrazyAgent import CrazyAgent
@@ -16,7 +17,7 @@ env = TicTacToeEnv()
 alphaZero = AZAgent()
 ppoA = PPOAgent()
 
-sims = 0
+
 S = 0
 Games = 0
 Score = list()
@@ -33,13 +34,13 @@ for episode in range(1000):
         actX = ppoA.act(state1)
 
         actX, stat = env.step(actX,1)
-        alphaZero.watchEnemy(state1, actX)
+
         state2 = env.getState()
         act0 = 0
         if stat == 3:
 
-
-            act0 = alphaZero.act(state2, 100, 4)
+            sims = 1 + 10*floor(episode/100)
+            act0 = alphaZero.act(state2, 100, 2)
             act0, stat = env.step(act0, 2)
         else:
             act0 = 0
@@ -62,15 +63,12 @@ for episode in range(1000):
     Games += 1
     if stat == 2:
         S -= 1
-        sims = sims -1
         Score.append(S)
         print(Games, env.board, ' ZeroWin ', S)
     if stat == 1:
         S += 1
-        sims = sims + 1
-        sims = min(sims, 100)
         Score.append(S)
-        print(Games, env.board,' CrossWin ', S, sims)
+        print(Games, env.board,' CrossWin ', S)
     if stat == 0:
         Score.append(S)
         print(Games, env.board, ' Nothing ', S)

@@ -22,7 +22,7 @@ class Actor(nn.Module):
     def __init__(self):
         super(Actor, self).__init__()
         self.fc1 = nn.Linear(9, 64)
-        self.fc2 = nn.Linear(64, 32)
+        self.fc2 = nn.Linear(64, 64)
         self.fc3 = nn.Linear(64, 9)
         self.relu = torch.nn.ReLU()
         self.sp = torch.nn.Softplus()
@@ -47,6 +47,12 @@ class PPOAgent:
         state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
         with torch.no_grad():
             probs = self.modelA(state_tensor)
+
+        if torch.isnan(probs).any():
+            valid_actions = [i for i, cell in enumerate(state) if cell == 0]
+            action = random.choice(valid_actions)
+            self.curr_prob = np.ones(9)/9.0
+            return action
         self.curr_prob = probs.detach().numpy()[0]
         action_dist = torch.distributions.Categorical(probs=probs)
         action = action_dist.sample()

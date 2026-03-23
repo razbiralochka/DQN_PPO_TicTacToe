@@ -39,20 +39,13 @@ class ValueNetwork(nn.Module):
 
 class AZAgent:
     def __init__(self):
-        self.enemy = Policy()
         self.policy = Policy()
         self.value = ValueNetwork()
-        self.optimizerE = optim.Adam(self.enemy.parameters(), lr=0.001)
         self.optimizerP = optim.Adam(self.policy.parameters(), lr=0.001)
         self.optimizerV = optim.Adam(self.value.parameters(), lr=0.005)
-        self.enemyData = deque(maxlen=200)
         self.policyData = deque(maxlen=200)
         self.valueData = deque(maxlen=1000)
 
-
-    def watchEnemy(self, state, action):
-        self.enemyData.append((state,action))
-        self.train_enemy_model()
 
     def trainValue(self):
 
@@ -83,22 +76,6 @@ class AZAgent:
         loss = nn.CrossEntropyLoss()(predicted_probs, actions)
         loss.backward()
         self.optimizerP.step()
-
-    def train_enemy_model(self):
-
-        if len(self.enemyData) < 20:
-            return
-
-        batch = random.sample(self.enemyData, 20)
-
-        states = torch.tensor([line[0] for line in batch], dtype=torch.float)
-        actions = torch.tensor([line[1] for line in batch], dtype=torch.long)
-
-        self.optimizerE.zero_grad()
-        predicted_probs = self.enemy(states)
-        loss = nn.CrossEntropyLoss()(predicted_probs, actions)
-        loss.backward()
-        self.optimizerE.step()
 
 
 
@@ -148,14 +125,14 @@ class AZAgent:
             simState[action] = 2
             depth = 0
             while self.checkState(simState) == 3 and depth < maxDepth:
-                enemyAct = self.predict_enemy_move(simState)
+                enemyAct = self.predict_self_move(simState, 1)
 
                 simState[enemyAct] = 1
 
                 if self.checkState(simState) != 3:
                     break
-
-                selfAct = self.predict_self_move(simState)
+                depth = depth + 1
+                selfAct = self.predict_self_move(simState, 2)
 
                 simState[selfAct] = 2
                 depth = depth + 1
@@ -180,20 +157,15 @@ class AZAgent:
         self.trainSelf(state,best_action)
         return best_action
 
-    def predict_enemy_move(self, state):
-        available = [i for i, x in enumerate(state) if x == 0]
-        state_tensor = torch.tensor(state, dtype=torch.float).unsqueeze(0)
-        with torch.no_grad():
-            logits = self.enemy(state_tensor).squeeze()
-            masked_logits = np.full(9, -np.inf)
-            masked_logits[available] = logits[available].numpy()
-            probs = torch.softmax(torch.tensor(masked_logits), dim=0)
-        action_dist = torch.distributions.Categorical(probs=probs)
-        return action_dist.sample().item()
 
-    def predict_self_move(self, state):
+    def predict_self_move(self, state, player):
         available = [i for i, x in enumerate(state) if x == 0]
         state_tensor = torch.tensor(state, dtype=torch.float).unsqueeze(0)
+        if player == 1:
+            inverted_board = [3 - cell if cell != 0 else 0 for cell in state]
+            state_tensor = torch.tensor(inverted_board, dtype=torch.float).unsqueeze(0)
+
+
         with torch.no_grad():
             logits = self.policy(state_tensor).squeeze()
             masked_logits = np.full(9, -np.inf)
@@ -202,9 +174,3 @@ class AZAgent:
         action_dist = torch.distributions.Categorical(probs=probs)
         return action_dist.sample().item()
 
-    def checkNet(self, state, reward):
-        state_tensor = torch.tensor(state, dtype=torch.float).unsqueeze(0)
-        R = torch.tensor(-reward,dtype=torch.float)
-        predicted_val = self.value(state_tensor)
-        loss = nn.MSELoss()(predicted_val,R)
-        print(loss.item())

@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-Data = np.genfromtxt('StataAZDQN.csv', delimiter=';')
+Data = np.genfromtxt('Stata.csv', delimiter=';')
 
 #for i in range(len(Data)):
     #Data[i] = Data[i]/(i+1)

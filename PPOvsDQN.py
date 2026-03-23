@@ -1,6 +1,6 @@
 import numpy as np
 from PIL.ImagePalette import random
-from math import floor
+
 from AZAgent import AZAgent
 from CrazyAgent import CrazyAgent
 from DQNAgent import DQNAgent
@@ -13,8 +13,8 @@ import random
 env = TicTacToeEnv()
 
 
-alphaZero = AZAgent()
 dqnA = DQNAgent()
+ppoA = PPOAgent()
 
 sims = 0
 S = 0
@@ -30,15 +30,16 @@ for episode in range(1000):
     while env.checkBoard() == 3:
         state1 = env.getState()
 
-        actX = dqnA.act(state1)
+        actX = ppoA.act(state1)
 
         actX, stat = env.step(actX,1)
 
         state2 = env.getState()
         act0 = 0
         if stat == 3:
-            sims = 1 + 10 * floor(episode / 100)
-            act0 = alphaZero.act(state2, 100, 2)
+
+            act0 = dqnA.act(state2)
+
             act0, stat = env.step(act0, 2)
         else:
             act0 = 0
@@ -48,12 +49,15 @@ for episode in range(1000):
         if env.checkBoard() == 2:
             reward = -1
 
-        dqnA.remember(state1, actX, reward, env.getState(), env.checkBoard() != 3)
+        ppoA.remember(state1, actX, reward)
+
+        if episode > 1:
+            dqnA.remember(lastS0, lastA0, -reward, env.getState(), env.checkBoard() != 3)
+        lastA0 = act0
+        lastS0 = state2
         dqnA.replay()
-
-    alphaZero.trainValue()
-
-
+    ppoA.rememberTraj()
+    ppoA.learn()
     stat = env.checkBoard()
     Games += 1
     if stat == 2:

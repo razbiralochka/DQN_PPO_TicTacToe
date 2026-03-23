@@ -13,7 +13,7 @@ import random
 env = TicTacToeEnv()
 
 
-crazyAgent = CrazyAgent()
+dqnA = DQNAgent()
 ppoA = PPOAgent()
 
 sims = 0
@@ -30,7 +30,7 @@ for episode in range(1000):
     while env.checkBoard() == 3:
         state1 = env.getState()
 
-        actX = crazyAgent.act(state1)
+        actX = dqnA.act(state1)
 
         actX, stat = env.step(actX,1)
 
@@ -50,8 +50,8 @@ for episode in range(1000):
             reward = -1
 
         ppoA.remember(state2, act0, -reward)
-
-
+        dqnA.remember(state1, actX, reward, env.getState(), env.checkBoard() != 3)
+        dqnA.replay()
 
     ppoA.rememberTraj()
     ppoA.learn()
