@@ -4,6 +4,8 @@ import torch.nn as nn
 import torch.optim as optim
 import random
 from collections import deque
+import torch.nn.functional as F
+
 
 
 class Policy(nn.Module):
@@ -24,16 +26,17 @@ class Policy(nn.Module):
 class ValueNetwork(nn.Module):
     def __init__(self):
         super(ValueNetwork, self).__init__()
-        self.fc1 = nn.Linear(9, 18)
-        self.fc2 = nn.Linear(18, 1)
-
+        self.fc1 = nn.Linear(9, 32)
+        self.fc2 = nn.Linear(32, 32)
+        self.fc3 = nn.Linear(32, 1)
         self.relu = nn.ReLU()
 
         self.tanh = nn.Tanh()  # Нормализация в [-1, 1]
 
     def forward(self, x):
         x = self.relu(self.fc1(x))
-        x = self.fc2(x)
+        x = self.relu(self.fc2(x))
+        x = self.relu(self.fc3(x))
         return self.tanh(x)  # Выход в диапазоне [-1, 1]
 
 
@@ -43,7 +46,7 @@ class AZAgent:
         self.value = ValueNetwork()
         self.optimizerP = optim.Adam(self.policy.parameters(), lr=0.001)
         self.optimizerV = optim.Adam(self.value.parameters(), lr=0.005)
-        self.policyData = deque(maxlen=200)
+        self.policyData = deque(maxlen=1000)
         self.valueData = deque(maxlen=1000)
 
 
@@ -63,17 +66,19 @@ class AZAgent:
         #print(loss.item())
 
 
-    def trainSelf(self, state, action):
+    def trainSelf(self, state, target_policy):
 
-        self.policyData.append((state,action))
+        self.policyData.append((state,target_policy))
         if len(self.policyData) < 20:
             return
         batch = random.sample(self.policyData, 20)
         states = torch.tensor([line[0] for line in batch], dtype=torch.float)
-        actions = torch.tensor([line[1] for line in batch], dtype=torch.long)
+        targets= torch.tensor([line[1] for line in batch], dtype=torch.float)
+
         self.optimizerP.zero_grad()
-        predicted_probs = self.policy(states)
-        loss = nn.CrossEntropyLoss()(predicted_probs, actions)
+        logits = self.policy(states)
+        log_probs = F.log_softmax(logits, dim=1)
+        loss = F.kl_div(log_probs, targets, reduction='batchmean')
         loss.backward()
         self.optimizerP.step()
 
@@ -104,7 +109,7 @@ class AZAgent:
         available = [i for i, x in enumerate(state) if x == 0]
         if not available:
             return 0
-        #dynsims = round(sims * (len(available)/8)**2)
+
         with torch.no_grad():
             logits = self.policy(torch.tensor(state, dtype=torch.float).unsqueeze(0))
             prior_probs = torch.softmax(logits, dim=1).numpy().flatten()
@@ -117,7 +122,7 @@ class AZAgent:
 
             for i in range(len(available)):
                 Q = totalR[i]/(N[i]+1)
-                U[i] = Q +  prior_probs[available[i]]*np.sqrt(np.sum(N)) / (1 + N[i])
+                U[i] = Q + 1.5*prior_probs[available[i]]*np.sqrt(np.sum(N)) / (1 + N[i])
             idx = np.argmax(U)
             action = available[idx]
 
@@ -154,7 +159,12 @@ class AZAgent:
 
         best_idx = np.argmax(N)
         best_action = available[best_idx]
-        self.trainSelf(state,best_action)
+
+        full_probs = np.zeros(9)
+        N_normalized = N / np.sum(N)
+        for i, action in enumerate(available):
+            full_probs[action] = N_normalized[i]
+        self.trainSelf(state,full_probs.tolist())
         return best_action
 
 
@@ -164,7 +174,6 @@ class AZAgent:
         if player == 1:
             inverted_board = [3 - cell if cell != 0 else 0 for cell in state]
             state_tensor = torch.tensor(inverted_board, dtype=torch.float).unsqueeze(0)
-
 
         with torch.no_grad():
             logits = self.policy(state_tensor).squeeze()

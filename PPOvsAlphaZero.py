@@ -39,7 +39,7 @@ for episode in range(1000):
         act0 = 0
         if stat == 3:
 
-            sims = 1 + 10*floor(episode/100)
+            #sims = 1 + 10*floor(episode/100)
             act0 = alphaZero.act(state2, 100, 2)
             act0, stat = env.step(act0, 2)
         else:

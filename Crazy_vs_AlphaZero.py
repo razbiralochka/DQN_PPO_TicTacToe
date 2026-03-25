@@ -21,8 +21,7 @@ S = 0
 Games = 0
 Score = list()
 
-lastA0 = 0
-lastS0 = 0
+
 
 for episode in range(1000):
     env.reset()
@@ -33,12 +32,11 @@ for episode in range(1000):
         actX = crazyAgent.act(state1)
 
         actX, stat = env.step(actX,1)
-        alphaZero.watchEnemy(state1, actX)
         state2 = env.getState()
         act0 = 0
         if stat == 3:
 
-            act0 = alphaZero.act(state2, 100)
+            act0 = alphaZero.act(state2, 100, 2)
 
             act0, stat = env.step(act0, 2)
         else:
@@ -50,10 +48,7 @@ for episode in range(1000):
             reward = -1
 
 
-
-    winner = env.checkBoard()
-    R = 1 if winner == 2 else -1 if winner == 1 else 0
-    #alphaZero.trainValue(env.getState(), R)
+    alphaZero.trainValue()
 
     stat = env.checkBoard()
     Games += 1
