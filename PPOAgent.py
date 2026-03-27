@@ -111,6 +111,7 @@ class PPOAgent:
 
             for line in data:
                 state, act, oldProbs, R = line
+                oldProbs = min(oldProbs, 1e-8)
                 state = torch.tensor(state, dtype=torch.float).unsqueeze(0)
                 Rew = torch.tensor(R, dtype=torch.float).unsqueeze(0)
                 oldProbs = torch.tensor(oldProbs, dtype=torch.float).unsqueeze(0)
