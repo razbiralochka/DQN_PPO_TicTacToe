@@ -37,7 +37,7 @@ class DQNAgent:
         best_idx = np.argmax(valid_q_values)
         action = valid_actions[best_idx]
 
-        if random.uniform(0,100) < 5:
+        if random.uniform(0,100) < 0:
             action = random.choice(valid_actions)
         return action
 
