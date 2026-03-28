@@ -15,6 +15,7 @@ class Crtic(nn.Module):
         self.fc3 = nn.Linear(32, 1)
         self.sp = torch.nn.Softplus()
         self.tanh = nn.Tanh()
+
     def forward(self, x):
         x = self.sp(self.fc1(x))
         x = self.sp(self.fc2(x))
@@ -28,6 +29,7 @@ class Actor(nn.Module):
         self.fc2 = nn.Linear(64, 64)
         self.fc3 = nn.Linear(64, 9)
         self.sp = torch.nn.Softplus()
+
     def forward(self, x):
         x = self.sp(self.fc1(x))
         x = self.sp(self.fc2(x))
@@ -40,11 +42,11 @@ class PPOAgent:
     def __init__(self):
         self.modelA = Actor()
         self.modelC = Crtic()
-        self.optimizerA = optim.SGD(self.modelA.parameters(), lr=0.001)
+        self.optimizerA = optim.SGD(self.modelA.parameters(), lr=0.002)
         self.optimizerC = optim.Adam(self.modelC.parameters(), lr=0.002)
         self.curr_prob = 0
         self.curr_trac = list()
-        self.trajcs = list()
+        self.trajcs = deque(maxlen=25)
     def act(self, state):
         state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
         with torch.no_grad():
@@ -72,12 +74,11 @@ class PPOAgent:
     def rememberTraj(self):
         self.trajcs.append(self.curr_trac.copy())
         self.curr_trac.clear()
-        if len(self.trajcs) > 150:
-            self.trajcs.clear()
+
 
     def learn(self):
 
-        if len(self.trajcs) < 20:
+        if len(self.trajcs) < 25:
             return
 
         data = list()
@@ -107,11 +108,10 @@ class PPOAgent:
                 self.optimizerC.step()
 
 
-        for epoch in range(5):
+        for epoch in range(7):
 
             for line in data:
                 state, act, oldProbs, R = line
-                oldProbs = min(oldProbs, 1e-8)
                 state = torch.tensor(state, dtype=torch.float).unsqueeze(0)
                 Rew = torch.tensor(R, dtype=torch.float).unsqueeze(0)
                 oldProbs = torch.tensor(oldProbs, dtype=torch.float).unsqueeze(0)
@@ -123,10 +123,10 @@ class PPOAgent:
                 self.optimizerA.zero_grad()
                 probs = self.modelA(state)[0][act]
 
-                ratio = torch.exp(torch.log(probs) - torch.log(oldProbs))
+                ratio = torch.exp(torch.log(probs) - torch.log(oldProbs + 1e-6))
                 loss = -torch.min(A*ratio, torch.clamp(ratio, 0.8, 1.2))
 
                 loss.backward()
                 self.optimizerA.step()
 
-        self.trajcs.clear()
+            self.trajcs.clear()

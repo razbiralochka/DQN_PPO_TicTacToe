@@ -13,6 +13,7 @@ class DQN(nn.Module):
         self.fc3 = nn.Linear(64, 9)
         self.relu = torch.nn.ReLU()
         self.sp = torch.nn.Softplus()
+
     def forward(self, x):
         x = self.sp(self.fc1(x))
         x = self.sp(self.fc2(x))
@@ -36,8 +37,8 @@ class DQNAgent:
         best_idx = np.argmax(valid_q_values)
         action = valid_actions[best_idx]
 
-        #if random.uniform(0,100) < 5:
-            # = random.choice(valid_actions)
+        if random.uniform(0,100) < 5:
+            action = random.choice(valid_actions)
         return action
 
     def remember(self, state, action, reward, next_state, done):

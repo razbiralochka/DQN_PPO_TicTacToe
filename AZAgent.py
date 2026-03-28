@@ -16,6 +16,7 @@ class Policy(nn.Module):
         self.l3 = nn.Linear(16,9)
         self.relu = nn.ReLU()
         self.sp = torch.nn.Softplus()
+
     def forward(self, x):
         x = self.sp(self.l1(x))
         x = self.sp(self.l2(x))
@@ -30,7 +31,6 @@ class ValueNetwork(nn.Module):
         self.fc2 = nn.Linear(32, 32)
         self.fc3 = nn.Linear(32, 1)
         self.relu = nn.ReLU()
-
         self.tanh = nn.Tanh()  # Нормализация в [-1, 1]
 
     def forward(self, x):

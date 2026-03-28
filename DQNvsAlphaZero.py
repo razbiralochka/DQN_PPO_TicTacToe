@@ -1,6 +1,9 @@
 import numpy as np
 from PIL.ImagePalette import random
 from math import floor
+
+from numpy.random import randint
+
 from AZAgent import AZAgent
 from CrazyAgent import CrazyAgent
 from DQNAgent import DQNAgent
@@ -31,6 +34,9 @@ for episode in range(1000):
         state1 = env.getState()
 
         actX = dqnA.act(state1)
+
+        if episode < 200:
+            actx = random.choice([i for i, cell in enumerate(state1) if cell == 0])
 
         actX, stat = env.step(actX,1)
 

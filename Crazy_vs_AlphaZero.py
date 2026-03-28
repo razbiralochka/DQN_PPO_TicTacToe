@@ -36,7 +36,7 @@ for episode in range(1000):
         act0 = 0
         if stat == 3:
 
-            act0 = alphaZero.act(state2, 100, 2)
+            act0 = alphaZero.act(state2,100,2)
 
             act0, stat = env.step(act0, 2)
         else:
@@ -46,6 +46,7 @@ for episode in range(1000):
             reward = 1
         if env.checkBoard() == 2:
             reward = -1
+
 
 
     alphaZero.trainValue()
