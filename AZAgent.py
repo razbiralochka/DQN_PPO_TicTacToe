@@ -6,55 +6,118 @@ import random
 from collections import deque
 import torch.nn.functional as F
 
-
-
+# === Нейронные сети ===
 class Policy(nn.Module):
     def __init__(self):
-        super(Policy,self).__init__()
-        self.l1 = nn.Linear(9,16)
-        self.l2 = nn.Linear(16,16)
-        self.l3 = nn.Linear(16,9)
+        super(Policy, self).__init__()
+        self.l1 = nn.Linear(9, 128)
+        self.l2 = nn.Linear(128, 128)
+        self.l3 = nn.Linear(128, 9)
         self.relu = nn.ReLU()
-        self.sp = torch.nn.Softplus()
+        self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
-        x = self.sp(self.l1(x))
-        x = self.sp(self.l2(x))
+        x = self.relu(self.l1(x))
+        x = self.relu(self.l2(x))
         x = self.l3(x)
         return x
-
 
 class ValueNetwork(nn.Module):
     def __init__(self):
         super(ValueNetwork, self).__init__()
-        self.fc1 = nn.Linear(9, 32)
-        self.fc2 = nn.Linear(32, 32)
-        self.fc3 = nn.Linear(32, 1)
+        self.fc1 = nn.Linear(9, 128)
+        self.fc2 = nn.Linear(128, 128)
+        self.fc3 = nn.Linear(128, 1)
         self.relu = nn.ReLU()
-        self.tanh = nn.Tanh()  # Нормализация в [-1, 1]
+        self.tanh = nn.Tanh()
 
     def forward(self, x):
         x = self.relu(self.fc1(x))
         x = self.relu(self.fc2(x))
-        x = self.relu(self.fc3(x))
-        return self.tanh(x)  # Выход в диапазоне [-1, 1]
+        x = self.fc3(x)  # Без ReLU перед Tanh
+        return self.tanh(x)
 
+# === Узел MCTS ===
+class Node:
+    def __init__(self, state, parent=None, prior=1.0, player=1):
+        self.state = np.array(state)
+        self.parent = parent
+        self.player = player  # 1 — X, 2 — O
+        self.prior = prior
+        self.children = {}
+        self.visits = 0
+        self.value_sum = 0.0
 
+    def check_state(self):
+        wins = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]]
+        for a,b,c in wins:
+            if self.state[a] == self.state[b] == self.state[c] == 1:
+                return 1
+            if self.state[a] == self.state[b] == self.state[c] == 2:
+                return 2
+        return 0 if 0 not in self.state else 3  # 3 = игра идёт
+
+    def is_terminal(self):
+        return self.check_state() != 3
+
+    def value(self):
+        if self.visits == 0:
+            return 0.0
+        return self.value_sum / self.visits
+
+    def is_fully_expanded(self):
+        if self.is_terminal():
+            return True
+        available = [i for i, x in enumerate(self.state) if x == 0]
+        return len(self.children) == len(available)
+
+    def select(self, c=1.5):
+        unvisited = [child for child in self.children.values() if child.visits == 0]
+        if unvisited:
+            return random.choice(unvisited)
+        return max(self.children.values(), key=lambda child: child.puct_score(c))
+
+    def puct_score(self, c=1.5):
+        if self.visits == 0:
+            return float('inf')
+        parent_visits = self.parent.visits if self.parent else 1
+        exploration = c * self.prior * np.sqrt(parent_visits) / (1 + self.visits)
+        return self.value() + exploration
+
+    def expand(self, policy_logits, player):
+        policy_probs = torch.softmax(torch.tensor(policy_logits), dim=0).numpy()
+        available = [i for i, x in enumerate(self.state) if x == 0]
+        for action in available:
+            new_state = self.state.copy()
+            new_state[action] = player
+            next_player = 1 if player == 2 else 2
+            self.children[action] = Node(
+                state=new_state,
+                parent=self,
+                prior=policy_probs[action],
+                player=next_player
+            )
+
+    def backpropagate(self, value):
+        self.visits += 1
+        self.value_sum += value
+        if self.parent:
+            self.parent.backpropagate(-value)  # инвертируем для противника
+
+# === Агент AlphaZero ===
 class AZAgent:
     def __init__(self):
         self.policy = Policy()
         self.value = ValueNetwork()
         self.optimizerP = optim.Adam(self.policy.parameters(), lr=0.001)
         self.optimizerV = optim.Adam(self.value.parameters(), lr=0.005)
-        self.policyData = deque(maxlen=1000)
-        self.valueData = deque(maxlen=1000)
-
+        self.policyData = deque(maxlen=5000)
+        self.valueData = deque(maxlen=5000)
 
     def trainValue(self):
-
+        """Обучение Value Network на статистике MCTS"""
         if len(self.valueData) < 50:
             return
-
         batch = random.sample(self.valueData, 50)
         states = torch.tensor([b[0] for b in batch], dtype=torch.float)
         z_val = torch.tensor([b[1] for b in batch], dtype=torch.float).unsqueeze(1)
@@ -63,18 +126,15 @@ class AZAgent:
         loss = nn.MSELoss()(predicted_val, z_val)
         loss.backward()
         self.optimizerV.step()
-        #print(loss.item())
-
 
     def trainSelf(self, state, target_policy):
-
-        self.policyData.append((state,target_policy))
+        """Обучение Policy Network"""
+        self.policyData.append((state, target_policy))
         if len(self.policyData) < 20:
             return
         batch = random.sample(self.policyData, 20)
-        states = torch.tensor([line[0] for line in batch], dtype=torch.float)
-        targets= torch.tensor([line[1] for line in batch], dtype=torch.float)
-
+        states = torch.tensor([b[0] for b in batch], dtype=torch.float)
+        targets = torch.tensor([b[1] for b in batch], dtype=torch.float)
         self.optimizerP.zero_grad()
         logits = self.policy(states)
         log_probs = F.log_softmax(logits, dim=1)
@@ -82,104 +142,37 @@ class AZAgent:
         loss.backward()
         self.optimizerP.step()
 
+    def act(self, state, player, sims=800, temperature=1.0):
+        """Выбор хода через MCTS с сохранением данных для обучения"""
+        root = Node(state, player=player)
 
+        # MCTS симуляции
+        for _ in range(sims):
+            node = root
 
-    def checkState(self, state):
-        winning_combinations = [
-            [0, 1, 2], [3, 4, 5], [6, 7, 8],  # Горизонтали
-            [0, 3, 6], [1, 4, 7], [2, 5, 8],  # Вертикали
-            [0, 4, 8], [2, 4, 6]]  # Диагонали
+            # Спуск до листа ИЛИ нерасширенного узла
+            while not node.is_terminal() and node.is_fully_expanded():
+                node = node.select(c=1.5)
 
-        for combo in winning_combinations:
-            if state[combo[0]] == state[combo[1]] == state[combo[2]] == 1:
-                 return 1  # Победа крестиков
-
-        for combo in winning_combinations:
-            if state[combo[0]] == state[combo[1]] == state[combo[2]] == 2:
-                return 2  # Победа ноликов
-
-        if 0 not in state:
-                return 0  # Ничья
-
-                # Игра продолжается (3)
-        return 3
-
-
-    def act(self,state, sims, maxDepth):
-        available = [i for i, x in enumerate(state) if x == 0]
-        if not available:
-            return 0
-
-        with torch.no_grad():
-            logits = self.policy(torch.tensor(state, dtype=torch.float).unsqueeze(0))
-            prior_probs = torch.softmax(logits, dim=1).numpy().flatten()
-
-        N = np.zeros(len(available))
-        totalR = np.zeros(len(available))
-        U = np.zeros(len(available))
-
-        for sim in range(sims):
-
-            for i in range(len(available)):
-                Q = totalR[i]/(N[i]+1)
-                U[i] = Q + 1.5*prior_probs[available[i]]*np.sqrt(np.sum(N)) / (1 + N[i])
-            idx = np.argmax(U)
-            action = available[idx]
-
-            simState = state.copy()
-            simState[action] = 2
-            depth = 0
-            while self.checkState(simState) == 3 and depth < maxDepth:
-                enemyAct = self.predict_self_move(simState, 1)
-
-                simState[enemyAct] = 1
-
-                if self.checkState(simState) != 3:
-                    break
-                depth = depth + 1
-                selfAct = self.predict_self_move(simState, 2)
-
-                simState[selfAct] = 2
-                depth = depth + 1
-
-            R = 0
-            winner = self.checkState(simState)
-            if winner != 3:
-                R = 1 if winner == 2 else -1 if winner == 1 else 0
-            else:
+            # Расширение, если узел не терминал
+            if not node.is_terminal():
                 with torch.no_grad():
-                    stateT = torch.tensor(simState, dtype=torch.float).unsqueeze(0)
-                    V = self.value(stateT)
-                    R = V.item()
+                    state_tensor = torch.tensor(node.state, dtype=torch.float).unsqueeze(0)
+                    policy_logits = self.policy(state_tensor).squeeze().numpy()
+                node.expand(policy_logits, node.player)
 
-            self.valueData.append((state, R))
-            totalR[idx] += R
+                # Оценка листа
+                if node.is_terminal():
+                    winner = node.check_state()
+                    value = 1.0 if winner == 2 else (-1.0 if winner == 1 else 0.0)
+                else:
+                    with torch.no_grad():
+                v = self.value(state_tensor).item()
+            value = v
+                node.backpropagate(value)
 
-            N[idx] = N[idx]+1
-
-        best_idx = np.argmax(N)
-        best_action = available[best_idx]
-
-        full_probs = np.zeros(9)
-        N_normalized = N / np.sum(N)
-        for i, action in enumerate(available):
-            full_probs[action] = N_normalized[i]
-        self.trainSelf(state,full_probs.tolist())
-        return best_action
-
-
-    def predict_self_move(self, state, player):
-        available = [i for i, x in enumerate(state) if x == 0]
-        state_tensor = torch.tensor(state, dtype=torch.float).unsqueeze(0)
-        if player == 1:
-            inverted_board = [3 - cell if cell != 0 else 0 for cell in state]
-            state_tensor = torch.tensor(inverted_board, dtype=torch.float).unsqueeze(0)
-
-        with torch.no_grad():
-            logits = self.policy(state_tensor).squeeze()
-            masked_logits = np.full(9, -np.inf)
-            masked_logits[available] = logits[available].numpy()
-            probs = torch.softmax(torch.tensor(masked_logits), dim=0)
-        action_dist = torch.distributions.Categorical(probs=probs)
-        return action_dist.sample().item()
-
+        # Сбор данных для обучения Value Network
+        for action, child in root.children.items():
+            if child.visits > 0:
+                # Оценка позиции из статистики MCTS
+                node_value = child
