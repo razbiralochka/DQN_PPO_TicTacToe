@@ -12,20 +12,19 @@ class DQN(nn.Module):
         self.fc2 = nn.Linear(64, 64)
         self.fc3 = nn.Linear(64, 9)
         self.relu = torch.nn.ReLU()
-        self.sp = torch.nn.Softplus()
-
+        self.tanh = nn.Tanh()
     def forward(self, x):
-        x = self.sp(self.fc1(x))
-        x = self.sp(self.fc2(x))
+        x = self.relu(self.fc1(x))
+        x = self.relu(self.fc2(x))
         x = self.fc3(x)
-        return x
+        return self.tanh(x)
 
 
 class DQNAgent:
     def __init__(self):
         self.memory = deque(maxlen=1000)
         self.model = DQN()
-        self.optimizer = optim.Adam(self.model.parameters(), lr=0.005)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=1e-4)
 
     def act(self, state):
         state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
@@ -37,17 +36,17 @@ class DQNAgent:
         best_idx = np.argmax(valid_q_values)
         action = valid_actions[best_idx]
 
-        if random.uniform(0,100) < 0:
-            action = random.choice(valid_actions)
+        #if random.uniform(0,100) < 5:
+            #action = random.choice(valid_actions)
         return action
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
 
     def replay(self):
-        if len(self.memory) < 20:
+        if len(self.memory) < 10:
             return
-        minibatch = random.sample(self.memory, 20)
+        minibatch = random.sample(self.memory, 10)
         for state, action, reward, next_state, done in minibatch:
             state = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
             next_state = torch.tensor(next_state, dtype=torch.float32).unsqueeze(0)
@@ -66,6 +65,5 @@ class DQNAgent:
                 target[0][action] = reward + torch.max(qNext)
 
             loss = nn.MSELoss()(q_values, target)
-
             loss.backward()
             self.optimizer.step()

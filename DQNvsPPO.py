@@ -1,8 +1,5 @@
 import numpy as np
-from PIL.ImagePalette import random
 
-from AZAgent import AZAgent
-from CrazyAgent import CrazyAgent
 from DQNAgent import DQNAgent
 from Enviroment import TicTacToeEnv
 from PPOAgent import PPOAgent
@@ -15,6 +12,7 @@ env = TicTacToeEnv()
 
 dqnA = DQNAgent()
 ppoA = PPOAgent()
+
 
 sims = 0
 S = 0

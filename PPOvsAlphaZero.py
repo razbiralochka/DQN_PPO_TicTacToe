@@ -1,29 +1,21 @@
 import numpy as np
-from PIL.ImagePalette import random
-from math import floor
-
 from AZAgent import AZAgent
-from CrazyAgent import CrazyAgent
-from DQNAgent import DQNAgent
-from Enviroment import TicTacToeEnv
 from PPOAgent import PPOAgent
+from Enviroment import TicTacToeEnv
 import matplotlib.pyplot as plt
-import random
+from CrazyAgent import CrazyAgent
 
 
 env = TicTacToeEnv()
 
-
 alphaZero = AZAgent()
-ppoA = PPOAgent()
-
+#ppoA = PPOAgent()
+a = CrazyAgent()
 
 S = 0
 Games = 0
 Score = list()
 
-lastA0 = 0
-lastS0 = 0
 
 for episode in range(1000):
     env.reset()
@@ -31,47 +23,40 @@ for episode in range(1000):
     while env.checkBoard() == 3:
         state1 = env.getState()
 
-        actX = ppoA.act(state1)
+        actX = a.act(state1)
 
         actX, stat = env.step(actX,1)
 
         state2 = env.getState()
-        act0 = 0
-        if stat == 3:
+        #ppoA.remember(state1, actX, reward)
+        if env.checkBoard() != 3:
+            break
+        act0 = alphaZero.act(state2, sims=200)
+        act0, stat = env.step(act0, 2)
 
-            #sims = 1 + 10*floor(episode/100)
-            act0 = alphaZero.act(state2, 100, 2)
-            act0, stat = env.step(act0, 2)
-        else:
-            act0 = 0
 
         if env.checkBoard() == 1:
             reward = 1
         if env.checkBoard() == 2:
             reward = -1
 
-        ppoA.remember(state1, actX, reward)
 
-
-    alphaZero.trainValue()
-
-
-
-    ppoA.rememberTraj()
-    ppoA.learn()
+    _ ,v = alphaZero.get_policy_value(env.getState(),2)
+    #ppoA.rememberTraj()
+    #ppoA.learn()
     stat = env.checkBoard()
     Games += 1
     if stat == 2:
         S -= 1
         Score.append(S)
-        print(Games, env.board, ' ZeroWin ', S)
+        print(Games, env.board, 'ZeroWin ', S, v)
     if stat == 1:
         S += 1
         Score.append(S)
-        print(Games, env.board,' CrossWin ', S)
+        print(Games, env.board,'CrossWin ', S, v)
     if stat == 0:
         Score.append(S)
-        print(Games, env.board, ' Nothing ', S)
+        print(Games, env.board, 'Nothing ', S)
 
     if episode % 100 ==0:
         np.savetxt('Stata.csv', np.array(Score))
@@ -82,6 +67,5 @@ Score = np.array(Score)
 np.savetxt('Stata.csv', Score)
 
 plt.plot(Score)
-#plt.ylim([-1.0,1.0])
 plt.grid()
 plt.show()

@@ -1,8 +1,4 @@
 import numpy as np
-from PIL.ImagePalette import random
-
-from AZAgent import AZAgent
-from CrazyAgent import CrazyAgent
 from DQNAgent import DQNAgent
 from Enviroment import TicTacToeEnv
 from PPOAgent import PPOAgent
@@ -22,12 +18,13 @@ S = 0
 Games = 0
 Score = list()
 
-lastA0 = 0
-lastS0 = 0
+
 
 for episode in range(1000):
     env.reset()
     reward = 0
+    state2 = 0
+    act0 = 0
     while env.checkBoard() == 3:
         state1 = env.getState()
 
@@ -35,28 +32,32 @@ for episode in range(1000):
 
         actX, stat = env.step(actX,1)
 
+
+        if state2 != 0:
+            dqnA.remember(state2, act0, -reward, env.getState(), env.checkBoard() != 3)
+
         state2 = env.getState()
+
         act0 = 0
         if stat == 3:
 
             act0 = dqnA.act(state2)
 
             act0, stat = env.step(act0, 2)
-        else:
-            act0 = 0
+
 
         if env.checkBoard() == 1:
             reward = 1
         if env.checkBoard() == 2:
             reward = -1
 
+        if env.checkBoard() != 3:
+            dqnA.remember(state2, act0, -reward, env.getState(), 1)
+
+        dqnA.replay()
         ppoA.remember(state1, actX, reward)
 
-        if episode > 1:
-            dqnA.remember(lastS0, lastA0, -reward, env.getState(), env.checkBoard() != 3)
-        lastA0 = act0
-        lastS0 = state2
-        dqnA.replay()
+
     ppoA.rememberTraj()
     ppoA.learn()
     stat = env.checkBoard()

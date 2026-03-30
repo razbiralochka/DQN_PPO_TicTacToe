@@ -14,12 +14,13 @@ class Crtic(nn.Module):
         self.fc2 = nn.Linear(32, 32)
         self.fc3 = nn.Linear(32, 1)
         self.sp = torch.nn.Softplus()
+        self.relu = torch.nn.LeakyReLU()
         self.tanh = nn.Tanh()
 
     def forward(self, x):
-        x = self.sp(self.fc1(x))
-        x = self.sp(self.fc2(x))
-        x = self.sp(self.fc3(x))
+        x = self.relu(self.fc1(x))
+        x = self.relu(self.fc2(x))
+        x = self.fc3(x)
         return self.tanh(x)
 
 class Actor(nn.Module):
@@ -29,10 +30,10 @@ class Actor(nn.Module):
         self.fc2 = nn.Linear(64, 64)
         self.fc3 = nn.Linear(64, 9)
         self.sp = torch.nn.Softplus()
-
+        self.relu = torch.nn.LeakyReLU()
     def forward(self, x):
-        x = self.sp(self.fc1(x))
-        x = self.sp(self.fc2(x))
+        x = self.relu(self.fc1(x))
+        x = self.relu(self.fc2(x))
         x = self.fc3(x)
         probs = torch.softmax(x, dim=-1)
         return probs
@@ -43,7 +44,7 @@ class PPOAgent:
         self.modelA = Actor()
         self.modelC = Crtic()
         self.optimizerA = optim.SGD(self.modelA.parameters(), lr=0.002)
-        self.optimizerC = optim.Adam(self.modelC.parameters(), lr=0.002)
+        self.optimizerC = optim.Adam(self.modelC.parameters(), lr=1e-4)
         self.curr_prob = 0
         self.curr_trac = list()
         self.trajcs = deque(maxlen=25)
