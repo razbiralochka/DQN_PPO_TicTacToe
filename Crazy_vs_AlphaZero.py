@@ -1,11 +1,8 @@
 import numpy as np
-from PIL.ImagePalette import random
 
 from AZAgent import AZAgent
 from CrazyAgent import CrazyAgent
-from DQNAgent import DQNAgent
 from Enviroment import TicTacToeEnv
-from PPOAgent import PPOAgent
 import matplotlib.pyplot as plt
 import random
 
@@ -16,12 +13,10 @@ env = TicTacToeEnv()
 alphaZero = AZAgent()
 crazyAgent = CrazyAgent()
 
-sims = 0
+
 S = 0
 Games = 0
 Score = list()
-
-
 
 for episode in range(1000):
     env.reset()
@@ -36,7 +31,7 @@ for episode in range(1000):
         act0 = 0
         if stat == 3:
 
-            act0 = alphaZero.act(state2,100,2)
+            act0 = alphaZero.act(state2,sims=200)
 
             act0, stat = env.step(act0, 2)
         else:
@@ -47,23 +42,18 @@ for episode in range(1000):
         if env.checkBoard() == 2:
             reward = -1
 
-
-
-    alphaZero.trainValue()
-
+    alphaZero.memoryV.append((env.getState(), 1.0 if env.checkBoard() == 2 else -1.0))
+    _, v = alphaZero.get_policy_value(env.getState(), 2)
     stat = env.checkBoard()
     Games += 1
     if stat == 2:
         S -= 1
-        sims = sims -1
         Score.append(S)
-        print(Games, env.board, ' ZeroWin ', S)
+        print(Games, env.board, ' ZeroWin ', S, v)
     if stat == 1:
         S += 1
-        sims = sims + 1
-        sims = min(sims, 100)
         Score.append(S)
-        print(Games, env.board,' CrossWin ', S, sims)
+        print(Games, env.board,' CrossWin ', S, v)
     if stat == 0:
         Score.append(S)
         print(Games, env.board, ' Nothing ', S)

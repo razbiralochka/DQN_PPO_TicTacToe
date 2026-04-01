@@ -88,10 +88,10 @@ class Node:
                 self.children[action] = Node(new_state, next_player, self, probs[action])
         self.is_expanded = True
 
-    def select(self, c=1.5):
+    def select(self, c=2.5):
         return max(self.children.values(), key=lambda n: n.puct(c))
 
-    def puct(self, c=1.5):
+    def puct(self, c=2.5):
         if self.visits == 0:
             return float('inf')
         parent_visits = self.parent.visits if self.parent else 1
@@ -110,8 +110,8 @@ class AZAgent:
     def __init__(self):
         self.policy = PolicyNet()
         self.value = ValueNet()
-        self.opt_p = optim.Adam(self.policy.parameters(), lr=1e-4)
-        self.opt_v = optim.Adam(self.value.parameters(), lr=1e-4)
+        self.opt_p = optim.Adam(self.policy.parameters(), lr=1e-3)
+        self.opt_v = optim.Adam(self.value.parameters(), lr=1e-3)
         self.memoryP = deque(maxlen=1000)  # политики
         self.memoryV = deque(maxlen=1000)  # ценности
 
@@ -172,10 +172,7 @@ class AZAgent:
                 value = v
 
             # Backpropagate по всему пути
-            temp_value = value
-            for n in reversed(path + [node]):
-                n.backpropagate(temp_value)
-                temp_value = -temp_value
+            node.backpropagate(-value)
 
 
         v_target = self.compute_root_value(root)
@@ -184,12 +181,13 @@ class AZAgent:
         total_visits = sum(visits)
         pi = [v / total_visits for v in visits] if total_visits > 0 else [1/9]*9
 
-        # ✅ Сохраняем: одно состояние — одна метка
+
         self.memoryP.append((np.array(state), pi))
         self.memoryV.append((np.array(state), v_target))
 
         # Выбор действия
-        action = np.argmax(visits) if total_visits > 0 else np.random.choice([i for i in range(9) if state[i] == 0])
+        action = np.argmax(visits)
+
 
         self.train_nets(32,1)
 
@@ -207,7 +205,7 @@ class AZAgent:
         for _ in range(epochs):
             # === Обучение политики ===
             batch_p = random.sample(self.memoryP, batch_size)
-            states_p = np.array([invert_board(s, 2) for s, _ in batch_p])  # AZ — player 2
+            states_p = np.array([s for s, _ in batch_p])  # AZ — player 2
             target_pis = np.array([pi for _, pi in batch_p])
 
             s_p = torch.FloatTensor(states_p)

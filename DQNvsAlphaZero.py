@@ -1,3 +1,5 @@
+import random
+
 import numpy as np
 from AZAgent import AZAgent
 from DQNAgent import DQNAgent
@@ -25,13 +27,14 @@ for episode in range(1000):
 
         actX = dqnA.act(state1)
 
-        actX, stat = env.step(actX,1)
 
+        actX, stat = env.step(actX,1)
         state2 = env.getState()
 
         if env.checkBoard() != 3:
             break
         act0 = alphaZero.act(state2, sims=200)
+
         act0, stat = env.step(act0, 2)
 
 
@@ -42,6 +45,7 @@ for episode in range(1000):
 
         dqnA.remember(state1, actX, reward, env.getState(), env.checkBoard() != 3)
         dqnA.replay()
+    alphaZero.memoryV.append((env.getState(), 1.0 if env.checkBoard() == 2 else -1.0 ))
     _ ,v = alphaZero.get_policy_value(env.getState(),2)
 
     stat = env.checkBoard()
