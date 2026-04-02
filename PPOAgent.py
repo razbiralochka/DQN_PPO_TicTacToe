@@ -13,8 +13,7 @@ class Crtic(nn.Module):
         self.fc1 = nn.Linear(9, 32)
         self.fc2 = nn.Linear(32, 32)
         self.fc3 = nn.Linear(32, 1)
-        self.sp = torch.nn.Softplus()
-        self.relu = torch.nn.LeakyReLU()
+        self.relu = torch.nn.ReLU()
         self.tanh = nn.Tanh()
 
     def forward(self, x):
@@ -29,8 +28,7 @@ class Actor(nn.Module):
         self.fc1 = nn.Linear(9, 64)
         self.fc2 = nn.Linear(64, 64)
         self.fc3 = nn.Linear(64, 9)
-        self.sp = torch.nn.Softplus()
-        self.relu = torch.nn.LeakyReLU()
+        self.relu = torch.nn.ReLU()
     def forward(self, x):
         x = self.relu(self.fc1(x))
         x = self.relu(self.fc2(x))
