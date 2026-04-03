@@ -20,9 +20,9 @@ class PolicyNet(nn.Module):
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(9, 32),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.Linear(32, 32),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.Linear(32, 9)
         )
 
@@ -35,9 +35,9 @@ class ValueNet(nn.Module):
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(9, 64),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.Linear(64, 64),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.Linear(64, 1),
             nn.Tanh()  # [-1, 1]
         )

@@ -11,7 +11,7 @@ class DQN(nn.Module):
         self.fc1 = nn.Linear(9, 64)
         self.fc2 = nn.Linear(64, 64)
         self.fc3 = nn.Linear(64, 9)
-        self.relu = torch.nn.ReLU()
+        self.relu = torch.nn.LeakyReLU()
         self.tanh = nn.Tanh()
     def forward(self, x):
         x = self.relu(self.fc1(x))
@@ -22,9 +22,9 @@ class DQN(nn.Module):
 
 class DQNAgent:
     def __init__(self):
-        self.memory = deque(maxlen=1000)
+        self.memory = deque(maxlen=100)
         self.model = DQN()
-        self.optimizer = optim.Adam(self.model.parameters(), lr=1e-4)
+        self.optimizer = optim.Adam(self.model.parameters(), lr=1e-3)
 
     def act(self, state):
         state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
@@ -36,8 +36,8 @@ class DQNAgent:
         best_idx = np.argmax(valid_q_values)
         action = valid_actions[best_idx]
 
-        #if random.uniform(0,100) < 5:
-            #action = random.choice(valid_actions)
+        if random.uniform(0,100) < 5:
+            action = random.choice(valid_actions)
         return action
 
     def remember(self, state, action, reward, next_state, done):

@@ -19,73 +19,95 @@ Games = 0
 Score = list()
 
 
-
 for episode in range(1000):
     env.reset()
-    reward = 0
-    state2 = 0
-    act0 = 0
-    while env.checkBoard() == 3:
+    state2 = None  # предыдущее состояние DQN
+    act0 = None    # предыдущее действие DQN
+    game_over = False
+
+    while not game_over:
+        # Ход PPO (крестики, игрок 1)
         state1 = env.getState()
-
         actX = ppoA.act(state1)
+        actX, stat = env.step(actX, 1)  # stat — текущий статус игры: 0, 1, 2, 3
+        ppo_reward = 0
 
-        actX, stat = env.step(actX,1)
+        # Проверяем, закончилась ли игра после хода PPO
+        result = env.checkBoard()
+        if result != 3:
+            game_over = True
+            if result == 1:
+                ppo_reward = 1
+            elif result == 2:
+                ppo_reward = -1
+            else:
+                ppo_reward = 0
 
+            # DQN проиграл, если PPO выиграл, и наоборот
+            dqn_reward = -ppo_reward
+        else:
+            ppo_reward = 0
+            dqn_reward = 0  # игра продолжается
 
-        if state2 != 0:
-            dqnA.remember(state2, act0, -reward, env.getState(), env.checkBoard() != 3)
+        # Если DQN делал ход ранее — запоминаем переход (s, a, r, s', done)
+        if state2 is not None and act0 is not None:
+            next_state = env.getState()
+            dqnA.remember(state2, act0, dqn_reward, next_state, game_over)
 
-        state2 = env.getState()
-
-        act0 = 0
-        if stat == 3:
-
+        # Если игра не окончена — DQN делает ход
+        if not game_over:
+            state2 = env.getState()
             act0 = dqnA.act(state2)
-
             act0, stat = env.step(act0, 2)
 
+            # Проверяем, закончилась ли игра после хода DQN
+            result = env.checkBoard()
+            if result != 3:
+                game_over = True
+                if result == 2:
+                    dqn_reward = 1
+                elif result == 1:
+                    dqn_reward = -1
+                else:
+                    dqn_reward = 0
+                ppo_reward = -dqn_reward
+            else:
+                dqn_reward = 0
+                ppo_reward = 0
 
-        if env.checkBoard() == 1:
-            reward = 1
-        if env.checkBoard() == 2:
-            reward = -1
+            # Обновляем PPO: его действие, награда, закончилась ли игра
+            ppoA.remember(state1, actX, ppo_reward)
 
-        if env.checkBoard() != 3:
-            dqnA.remember(state2, act0, -reward, env.getState(), 1)
+        # Если игра окончена, запоминаем последний переход DQN (если он был)
+        if game_over and state2 is not None and act0 is not None:
+            final_state = env.getState()
+            dqnA.remember(state2, act0, dqn_reward, final_state, True)
 
+        # Обучение
         dqnA.replay()
-        ppoA.remember(state1, actX, reward)
+        ppoA.rememberTraj()
 
-
-    ppoA.rememberTraj()
+    # После завершения игры
     ppoA.learn()
-    stat = env.checkBoard()
-    Games += 1
-    if stat == 2:
-        S -= 1
-        sims = sims -1
-        Score.append(S)
-        print(Games, env.board, ' ZeroWin ', S)
-    if stat == 1:
-        S += 1
-        sims = sims + 1
-        sims = min(sims, 100)
-        Score.append(S)
-        print(Games, env.board,' CrossWin ', S, sims)
-    if stat == 0:
-        Score.append(S)
-        print(Games, env.board, ' Nothing ', S)
 
-    if episode % 100 ==0:
+    # Логирование и подсчёт счёта
+    result = env.checkBoard()
+    Games += 1
+    if result == 2:
+        S -= 1
+        print(Games, env.board, ' ZeroWin ', S)
+    elif result == 1:
+        S += 1
+        print(Games, env.board, ' CrossWin ', S)
+    else:
+        print(Games, env.board, ' Draw ', S)
+    Score.append(S)
+
+    if episode % 100 == 0:
         np.savetxt('Stata.csv', np.array(Score))
 
-
-
-Score = np.array(Score)
-np.savetxt('Stata.csv', Score)
-
+# После всех эпизодов
+np.savetxt('Stata.csv', np.array(Score))
 plt.plot(Score)
-#plt.ylim([-1.0,1.0])
 plt.grid()
 plt.show()

@@ -1,11 +1,11 @@
 import numpy as np
-from DQNAgent import DQNAgent
+from CrazyAgent import CrazyAgent
 from Enviroment import TicTacToeEnv
 from PPOAgent import PPOAgent
 import matplotlib.pyplot as plt
 
 env = TicTacToeEnv()
-dqnA = DQNAgent()
+crazy = CrazyAgent()
 ppoA = PPOAgent()
 
 S = 0
@@ -19,7 +19,7 @@ for episode in range(1000):
     while not game_over:
         # Ход DQN (крестики, 1)
         state1 = env.getState()
-        actX = dqnA.act(state1)
+        actX = crazy.act(state1)
         actX, _ = env.step(actX, 1)  # игнорируем stat, проверим через checkBoard
 
         result = env.checkBoard()
@@ -37,10 +37,6 @@ for episode in range(1000):
             dqn_reward = 0
             ppo_reward = 0
 
-        # Запоминаем переход DQN: (s, a, r, s', done)
-        next_state = env.getState()
-        dqnA.remember(state1, actX, dqn_reward, next_state, game_over)
-        dqnA.replay()  # обучаем DQN
 
         # Если игра не окончена — ход PPO (нолики, 2)
         if not game_over:

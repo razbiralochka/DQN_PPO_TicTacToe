@@ -1,7 +1,7 @@
 import numpy as np
-from AZAgent import AZAgent
+from DQNAgent import DQNAgent
 from Enviroment import TicTacToeEnv
-from PPOAgent import PPOAgent
+from CrazyAgent import CrazyAgent
 import matplotlib.pyplot as plt
 import random
 
@@ -9,8 +9,8 @@ import random
 env = TicTacToeEnv()
 
 
-alphaZero = AZAgent()
-ppoA = PPOAgent()
+dqnA = DQNAgent()
+crazy = CrazyAgent()
 
 
 sims = 0
@@ -28,7 +28,7 @@ for episode in range(1000):
     while not game_over:
         # Ход PPO (крестики, игрок 1)
         state1 = env.getState()
-        actX = ppoA.act(state1)
+        actX = crazy.act(state1)
         actX, stat = env.step(actX, 1)  # stat — текущий статус игры: 0, 1, 2, 3
         ppo_reward = 0
 
@@ -44,17 +44,20 @@ for episode in range(1000):
                 ppo_reward = 0
 
             # DQN проиграл, если PPO выиграл, и наоборот
-            az_reward = -ppo_reward
+            dqn_reward = -ppo_reward
         else:
             ppo_reward = 0
-            az_reward = 0  # игра продолжается
+            dqn_reward = 0  # игра продолжается
 
-
+        # Если DQN делал ход ранее — запоминаем переход (s, a, r, s', done)
+        if state2 is not None and act0 is not None:
+            next_state = env.getState()
+            dqnA.remember(state2, act0, dqn_reward, next_state, game_over)
 
         # Если игра не окончена — DQN делает ход
         if not game_over:
             state2 = env.getState()
-            act0 = alphaZero.act(state2, sims =200)
+            act0 = dqnA.act(state2)
             act0, stat = env.step(act0, 2)
 
             # Проверяем, закончилась ли игра после хода DQN
@@ -62,38 +65,37 @@ for episode in range(1000):
             if result != 3:
                 game_over = True
                 if result == 2:
-                    az_reward = 1
+                    dqn_reward = 1
                 elif result == 1:
-                    az_reward = -1
+                    dqn_reward = -1
                 else:
-                    az_reward = 0
-                ppo_reward = -az_reward
+                    dqn_reward = 0
+                ppo_reward = -dqn_reward
             else:
-                az_reward = 0
+                dqn_reward = 0
                 ppo_reward = 0
 
-            # Обновляем PPO: его действие, награда, закончилась ли игра
-            ppoA.remember(state1, actX, ppo_reward)
+
+        # Если игра окончена, запоминаем последний переход DQN (если он был)
+        if game_over and state2 is not None and act0 is not None:
+            final_state = env.getState()
+            dqnA.remember(state2, act0, dqn_reward, final_state, True)
 
         # Обучение
-        ppoA.rememberTraj()
+        dqnA.replay()
 
-    # После завершения игры
-    ppoA.learn()
 
-    alphaZero.memoryV.append((env.getState(), 1.0 if env.checkBoard() == 2 else -1.0))
-    _, v = alphaZero.get_policy_value(env.getState(), 2)
-    # Обновляем счёт
+    # Логирование и подсчёт счёта
     result = env.checkBoard()
     Games += 1
-    if result == 1:
-        S += 1
-        print(Games, env.board, ' CrossWin ', S, v)
-    elif result == 2:
+    if result == 2:
         S -= 1
-        print(Games, env.board, ' ZeroWin ', S, v)
+        print(Games, env.board, ' ZeroWin ', S)
+    elif result == 1:
+        S += 1
+        print(Games, env.board, ' CrossWin ', S)
     else:
-        print(Games, env.board, ' Draw ', S, v)
+        print(Games, env.board, ' Draw ', S)
     Score.append(S)
 
     if episode % 100 == 0:
