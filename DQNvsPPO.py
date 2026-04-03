@@ -1,6 +1,6 @@
 import numpy as np
 from DQNAgent import DQNAgent
-from Enviroment import TicTacToeEnv
+from Environment import TicTacToeEnv
 from PPOAgent import PPOAgent
 import matplotlib.pyplot as plt
 

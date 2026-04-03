@@ -1,5 +1,5 @@
 import numpy as np
-from Enviroment import TicTacToeEnv
+from Environment import TicTacToeEnv
 from CrazyAgent import CrazyAgent
 import matplotlib.pyplot as plt
 

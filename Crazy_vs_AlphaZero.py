@@ -1,6 +1,6 @@
 import numpy as np
 from AZAgent import AZAgent
-from Enviroment import TicTacToeEnv
+from Environment import TicTacToeEnv
 from CrazyAgent import CrazyAgent
 import matplotlib.pyplot as plt
 import random

@@ -1,6 +1,6 @@
 import numpy as np
 from CrazyAgent import CrazyAgent
-from Enviroment import TicTacToeEnv
+from Environment import TicTacToeEnv
 from PPOAgent import PPOAgent
 import matplotlib.pyplot as plt
 
