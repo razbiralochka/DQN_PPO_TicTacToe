@@ -20,7 +20,7 @@ for episode in range(1000):
         # Ход DQN (крестики, 1)
         state1 = env.getState()
         actX = dqnA.act(state1)
-        actX, _ = env.step(actX, 1)  # игнорируем stat, проверим через checkBoard
+        actX, _ = env.step(actX, 1)
 
         result = env.checkBoard()
         if result != 3:
@@ -37,10 +37,7 @@ for episode in range(1000):
             dqn_reward = 0
             ppo_reward = 0
 
-        # Запоминаем переход DQN: (s, a, r, s', done)
-        next_state = env.getState()
-        dqnA.remember(state1, actX, dqn_reward, next_state, game_over)
-        dqnA.replay()  # обучаем DQN
+
 
         # Если игра не окончена — ход PPO (нолики, 2)
         if not game_over:
@@ -61,6 +58,10 @@ for episode in range(1000):
             else:
                 ppo_reward = 0
 
+            # Запоминаем переход DQN: (s, a, r, s', done)
+            next_state = env.getState()
+            dqnA.remember(state1, actX, dqn_reward, next_state, game_over)
+            dqnA.replay()  # обучаем DQN
             # Запоминаем действие PPO
             ppoA.remember(state2, act0, ppo_reward)
 

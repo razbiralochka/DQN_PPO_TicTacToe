@@ -39,8 +39,7 @@ for episode in range(1000):
 
         # Запоминаем переход DQN: (s, a, r, s', done)
         next_state = env.getState()
-        dqnA.remember(state1, actX, dqn_reward, next_state, game_over)
-        dqnA.replay()  # обучаем DQN
+
 
         # Если игра не окончена — ход PPO (нолики, 2)
         if not game_over:
@@ -60,6 +59,9 @@ for episode in range(1000):
                 dqn_reward = -az_reward  # на случай, если DQN ещё будет учиться (но уже не будет)
             else:
                 az_reward = 0
+
+            dqnA.remember(state1, actX, dqn_reward, env.getState(), game_over)
+            dqnA.replay()  # обучаем DQN
 
     alphaZero.memoryV.append((env.getState(), 1.0 if env.checkBoard() == 2 else -1.0))
     _, v = alphaZero.get_policy_value(env.getState(), 2)
