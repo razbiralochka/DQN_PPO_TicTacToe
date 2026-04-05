@@ -85,7 +85,8 @@ for episode in range(1000):
 
         # Обучение
         dqnA.replay()
-        ppoA.rememberTraj()
+    final_reward = 1 if env.checkBoard() == 1 else (-1 if env.checkBoard() == 2 else 0)
+    ppoA.rememberTraj(final_reward)
 
     # После завершения игры
     ppoA.learn()

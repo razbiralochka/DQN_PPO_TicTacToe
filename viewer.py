@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 
 Data = np.genfromtxt('Stata.csv', delimiter=';')
 
-#for i in range(len(Data)):
-    #Data[i] = Data[i]/(i+1)
+for i in range(len(Data)):
+    Data[i] = Data[i]-0*0.6
 
 plt.plot(Data)
 plt.grid()

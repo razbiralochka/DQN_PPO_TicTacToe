@@ -76,7 +76,8 @@ for episode in range(1000):
             ppoA.remember(state1, actX, ppo_reward)
 
         # Обучение
-        ppoA.rememberTraj()
+        final_reward = 1 if env.checkBoard() == 1 else (-1 if env.checkBoard() == 2 else 0)
+        ppoA.rememberTraj(final_reward)
 
     # После завершения игры
     ppoA.learn()

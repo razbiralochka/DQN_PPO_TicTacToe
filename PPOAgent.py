@@ -41,11 +41,11 @@ class PPOAgent:
     def __init__(self):
         self.modelA = Actor()
         self.modelC = Crtic()
-        self.optimizerA = optim.SGD(self.modelA.parameters(), lr=0.002)
-        self.optimizerC = optim.Adam(self.modelC.parameters(), lr=1e-4)
+        self.optimizerA = optim.Adam(self.modelA.parameters(), lr=1e-3)
+        self.optimizerC = optim.Adam(self.modelC.parameters(), lr=1e-3)
         self.curr_prob = 0
         self.curr_trac = list()
-        self.trajcs = deque(maxlen=25)
+        self.trajcs = deque(maxlen=15)
     def act(self, state):
         state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
         with torch.no_grad():
@@ -68,27 +68,28 @@ class PPOAgent:
         old_prob = self.curr_prob[a]
         reward = r
         state = state_
+
         self.curr_trac.append([state,a,old_prob,reward])
 
-    def rememberTraj(self):
+    def rememberTraj(self, finalR):
+        for step in self.curr_trac:
+           step[3] = finalR
+
         self.trajcs.append(self.curr_trac.copy())
         self.curr_trac.clear()
 
 
     def learn(self):
 
-        if len(self.trajcs) < 25:
+        if len(self.trajcs) < 15:
             return
-
         data = list()
         for traj in self.trajcs:
-            L = len(traj)
-            for i in reversed(range(L)):
-                if i < L-1:
-                    traj[i][3] = traj[i][3] + traj[i+1][3]
+            for step in traj:  # ← проходим по каждому шагу в траектории
+                data.append(step)
+        self.trajcs.clear()
+        #print(data)
 
-            for elem in traj:
-                data.append(elem)
         random.shuffle(data)
 
 
@@ -107,7 +108,7 @@ class PPOAgent:
                 self.optimizerC.step()
 
 
-        for epoch in range(7):
+        for epoch in range(15):
 
             for line in data:
                 state, act, oldProbs, R = line
@@ -117,15 +118,15 @@ class PPOAgent:
 
                 with torch.no_grad():
                     V = self.modelC(state)
-                A = (Rew-V).detach().item()
+                A = (Rew-V).detach()
 
                 self.optimizerA.zero_grad()
                 probs = self.modelA(state)[0][act]
 
-                ratio = torch.exp(torch.log(probs) - torch.log(oldProbs + 1e-6))
-                loss = -torch.min(A*ratio, torch.clamp(ratio, 0.8, 1.2))
+                ratio = probs /(oldProbs + 1e-8)
+                loss = -torch.min(A*ratio, A*torch.clamp(ratio, 0.8, 1.2)).mean()
 
                 loss.backward()
                 self.optimizerA.step()
 
-            self.trajcs.clear()
+

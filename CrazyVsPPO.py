@@ -15,7 +15,8 @@ Score = []
 for episode in range(1000):
     env.reset()
     game_over = False
-
+    state2 = None
+    act0 = None
     while not game_over:
         # Ход DQN (крестики, 1)
         state1 = env.getState()
@@ -37,7 +38,6 @@ for episode in range(1000):
             dqn_reward = 0
             ppo_reward = 0
 
-
         # Если игра не окончена — ход PPO (нолики, 2)
         if not game_over:
             state2 = env.getState()
@@ -56,13 +56,12 @@ for episode in range(1000):
                 dqn_reward = -ppo_reward  # на случай, если DQN ещё будет учиться (но уже не будет)
             else:
                 ppo_reward = 0
-
             # Запоминаем действие PPO
             ppoA.remember(state2, act0, ppo_reward)
 
-
+    final_reward = 1 if env.checkBoard() == 2 else (-1 if env.checkBoard() == 1 else 0)
     # Конец игры: обучаем PPO
-    ppoA.rememberTraj()
+    ppoA.rememberTraj(final_reward)
     ppoA.learn()
 
     # Обновляем счёт

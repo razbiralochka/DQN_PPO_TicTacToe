@@ -67,7 +67,8 @@ for episode in range(1000):
 
 
     # Конец игры: обучаем PPO
-    ppoA.rememberTraj()
+    final_reward = 1 if env.checkBoard() == 2 else (-1 if env.checkBoard() == 1 else 0)
+    ppoA.rememberTraj(final_reward)
     ppoA.learn()
 
     # Обновляем счёт

@@ -98,7 +98,7 @@ for episode in range(1000):
         print(Games, env.board, ' Draw ', S)
     Score.append(S)
 
-    if episode % 100 == 0:
+    if episode % 500 == 0:
         np.savetxt('Stata.csv', np.array(Score))
 
 # После всех эпизодов
