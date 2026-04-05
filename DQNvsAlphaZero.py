@@ -3,6 +3,7 @@ from DQNAgent import DQNAgent
 from Environment import TicTacToeEnv
 from AZAgent import AZAgent
 import matplotlib.pyplot as plt
+import random
 
 env = TicTacToeEnv()
 dqnA = DQNAgent()
@@ -20,6 +21,8 @@ for episode in range(1000):
         # Ход DQN (крестики, 1)
         state1 = env.getState()
         actX = dqnA.act(state1)
+        if episode < 300:
+            actX = random.randint(0,8)
         actX, _ = env.step(actX, 1)  # игнорируем stat, проверим через checkBoard
 
         result = env.checkBoard()
@@ -44,7 +47,7 @@ for episode in range(1000):
         # Если игра не окончена — ход PPO (нолики, 2)
         if not game_over:
             state2 = env.getState()
-            act0 = alphaZero.act(state2, sims=50)
+            act0 = alphaZero.act(state2, sims=200)
             act0, _ = env.step(act0, 2)
 
             result = env.checkBoard()
@@ -63,7 +66,7 @@ for episode in range(1000):
             dqnA.remember(state1, actX, dqn_reward, env.getState(), game_over)
             dqnA.replay()  # обучаем DQN
 
-    alphaZero.memoryV.append((env.getState(), 1.0*(env.checkBoard() == 0) if env.checkBoard() == 2 else -1.0))
+    alphaZero.memoryV.append((env.getState(), 1 if env.checkBoard() == 2 else (-1 if env.checkBoard() == 1 else 0)))
     _, v = alphaZero.get_policy_value(env.getState(), 2)
     # Обновляем счёт
     result = env.checkBoard()

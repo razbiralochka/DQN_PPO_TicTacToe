@@ -1,4 +1,5 @@
 import numpy as np
+import random
 from DQNAgent import DQNAgent
 from Environment import TicTacToeEnv
 from PPOAgent import PPOAgent
@@ -20,6 +21,7 @@ for episode in range(1000):
         # Ход DQN (крестики, 1)
         state1 = env.getState()
         actX = dqnA.act(state1)
+
         actX, _ = env.step(actX, 1)
 
         result = env.checkBoard()

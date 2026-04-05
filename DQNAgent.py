@@ -65,4 +65,5 @@ class DQNAgent:
 
             loss = nn.MSELoss()(q_values, target)
             loss.backward()
+
             self.optimizer.step()
