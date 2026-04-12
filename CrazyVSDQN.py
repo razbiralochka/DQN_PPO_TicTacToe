@@ -26,13 +26,13 @@ for episode in range(1000):
     game_over = False
 
     while not game_over:
-        # Ход PPO (крестики, игрок 1)
+
         state1 = env.getState()
         actX = crazy.act(state1)
         actX, stat = env.step(actX, 1)  # stat — текущий статус игры: 0, 1, 2, 3
         ppo_reward = 0
 
-        # Проверяем, закончилась ли игра после хода PPO
+
         result = env.checkBoard()
         if result != 3:
             game_over = True

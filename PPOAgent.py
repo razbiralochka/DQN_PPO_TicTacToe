@@ -41,8 +41,8 @@ class PPOAgent:
     def __init__(self):
         self.modelA = Actor()
         self.modelC = Crtic()
-        self.optimizerA = optim.Adam(self.modelA.parameters(), lr=1e-3)
-        self.optimizerC = optim.Adam(self.modelC.parameters(), lr=1e-3)
+        self.optimizerA = optim.SGD(self.modelA.parameters(), lr=1e-3)
+        self.optimizerC = optim.SGD(self.modelC.parameters(), lr=1e-3)
         self.curr_prob = 0
         self.curr_trac = list()
         self.trajcs = deque(maxlen=15)

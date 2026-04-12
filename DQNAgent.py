@@ -24,7 +24,7 @@ class DQNAgent:
     def __init__(self):
         self.memory = deque(maxlen=1000)
         self.model = DQN()
-        self.optimizer = optim.Adam(self.model.parameters(), lr=1e-3)
+        self.optimizer = optim.SGD(self.model.parameters(), lr=1e-3)
 
     def act(self, state):
         state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0)

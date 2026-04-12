@@ -21,7 +21,7 @@ for episode in range(1000):
         # Ход DQN (крестики, 1)
         state1 = env.getState()
         actX = dqnA.act(state1)
-        if episode < 300:
+        if episode < 250:
             actX = random.randint(0,8)
         actX, _ = env.step(actX, 1)  # игнорируем stat, проверим через checkBoard
 

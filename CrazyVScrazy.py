@@ -15,7 +15,7 @@ for episode in range(1000):
     game_over = False
 
     while not game_over:
-        # Ход DQN (крестики, 1)
+
         state1 = env.getState()
         actX = crazy.act(state1)
         actX, _ = env.step(actX, 1)  # игнорируем stat, проверим через checkBoard
@@ -25,12 +25,14 @@ for episode in range(1000):
             game_over = True
 
 
-
         if not game_over:
             state2 = env.getState()
             act0 = crazy.act(state2)
             act0, _ = env.step(act0, 2)
 
+            result = env.checkBoard()
+            if result != 3:
+                game_over = True
 
 
     # Обновляем счёт
