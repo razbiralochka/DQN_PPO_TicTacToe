@@ -6,14 +6,6 @@ from collections import deque
 import random
 
 
-# === Функция инвертирования доски: сеть всегда видит себя как 1 (X) ===
-def invert_board(board, player):
-    """Если игрок 2 (O), то 1 ↔ 2, чтобы сеть всегда играла за X"""
-    board = np.array(board)
-    if player == 2:
-        board = np.where(board == 1, 2, np.where(board == 2, 1, 0))
-    return board
-
 
 class PolicyNet(nn.Module):
     def __init__(self):
@@ -117,17 +109,17 @@ class AZAgent:
 
     def get_policy_value(self, state, player=2):
         state = np.array(state)
-        if player == 1:  # если настоящий игрок — X
-            inv_state = np.where(state == 1, 2, np.where(state == 2, 1, 0))
-        else:  # player == 2 → O → сеть и так за O → не трогаем
-            inv_state = state.copy()
 
         with torch.no_grad():
-            s = torch.FloatTensor(inv_state).unsqueeze(0)
+            s = torch.FloatTensor(state).unsqueeze(0)
             p_logits = self.policy(s).squeeze().numpy()
             v = self.value(s).item()
 
-        return p_logits, v
+        # Инвертируем только если игрок = 1
+        if player == 1:
+            return -p_logits, -v  # инвертируем и логиты, и значение
+        else:
+            return p_logits, v
 
     def compute_root_value(self, root):
         """Вычисляем v_target как взвешенное среднее Q по детям"""
@@ -219,7 +211,7 @@ class AZAgent:
 
             # === Обучение ценности ===
             batch_v = random.sample(self.memoryV, batch_size)
-            states_v = np.array([invert_board(s, 2) for s, _ in batch_v])
+            states_v = np.array([s for s, _ in batch_v])
             target_zs = torch.FloatTensor([z for _, z in batch_v]).unsqueeze(1)
 
             s_v = torch.FloatTensor(states_v)
